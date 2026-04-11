@@ -25,7 +25,6 @@ def inverse(self, A):
 
         # hoán đổi hàng hiện tại với hàng có pivot lớn nhất
         aug[col], aug[max_row] = aug[max_row], aug[col]
-        # ----------------------------------------
 
         # chia cả hàng cho phần tử đường chéo để nó biến thành số 1
         pivot = aug[col][col]
