@@ -6,44 +6,60 @@ import back_substitution as bs
 import determinant as dt
 import inverse as inv
 import rank_and_basis as rb
+import matrix as mt
+
+# Hàm bổ trợ để ghi input
+def log_input_data(f, A, b=None):
+    f.write("  [Dữ liệu đầu vào]\n")
+    f.write("  + Ma trận A:\n")
+    for row in A:
+        formatted_row = [f"{val:8.4f}" for val in row]
+        f.write(f"    {formatted_row}\n")
+    if b is not None:
+        formatted_b = [f"{val:8.4f}" for val in b]
+        f.write(f"  + Vector b: {formatted_b}\n")
+    f.write("-" * 30 + "\n")
 
 def verify_solutions():
     log_file = "test_results.txt"
-    
-    # QUY ƯỚC MÃ SỐ CHO HÀM BACK_SUBSTITUTION
-    # Hãy thay đổi 2 con số này thành giá trị mà code của bạn đang trả về
-    CODE_VO_NGHIEM = float('nan') # Hoặc -1, 0, v.v. tùy code của bạn
-    CODE_VO_SO_NGHIEM = float('inf') # Hoặc -2, 1, v.v. tùy code của bạn
+    CO_NGHIEM = float(1)
+    VO_NGHIEM = float(0)
+    VO_SO_NGHIEM = float(-1)
 
     with open(log_file, "w", encoding="utf-8") as f:
-        f.write("=== NHẬT KÝ KIỂM THỬ ĐỒ ÁN TOÁN ỨNG DỤNG ===\n")
-        f.write("Lưu ý: Kết quả chuẩn của NumPy/SciPy chỉ hiển thị khi code của bạn tính sai.\n")
-        f.write("="*60 + "\n\n")
+        f.write("=== KẾT QUẢ KIỂM THỬ HÀM ===\n")
+        f.write("="*28 + "\n\n")
 
         # ---------------------------------------------------------
-        # 1. KIỂM TRA GAUSSIAN ELIMINATE & BACK SUBSTITUTION
+        # 1. KIỂM TRA HÀM gaussian_eliminate(A, b)
         # ---------------------------------------------------------
-        f.write("--- PHẦN 1: HỆ PHƯƠNG TRÌNH LINEAR (GAUSS & BACK SUB) ---\n")
+        f.write("--- PHẦN 1: KIỂM TRA KHỬ GAUSS PARTIAL PIVOTING BẰNG HÀM gaussian_eliminate(A, b) ---\n")
         
+        # Các test cases
         test_systems = [
             {
-                "name": "1. Có nghiệm duy nhất (Cơ bản)",
+                "name": "Case 1: Ma trận Có nghiệm duy nhất",
                 "A": np.array([[2., 1., -1.], [-3., -1., 2.], [-2., 1., 2.]]),
                 "b": np.array([8., -11., -3.])
             },
             {
-                "name": "2. Có nghiệm duy nhất (Bắt buộc Partial Pivoting)",
+                "name": "Case 2: Ma trận có nghiệm duy nhất",
                 "A": np.array([[0., 2., 1.], [1., -2., -3.], [-1., 1., 2.]]),
                 "b": np.array([-8., 0., 3.])
             },
             {
-                "name": "3. Hệ Vô Nghiem (Dòng cuối 0 = c)",
+                "name": "Case 3: Ma trận vô nghiệm",
                 "A": np.array([[1., 1.], [1., 1.]]),
                 "b": np.array([1., 2.])
             },
             {
-                "name": "4. Hệ Vô Số Nghiệm",
+                "name": "Case 4: Ma trận vô số nghiệm",
                 "A": np.array([[1., 2.], [2., 4.]]),
+                "b": np.array([1., 2.])
+            },
+            {
+                "name": "Case 5: Ma trận vô nghiệm",
+                "A": np.array([[1., 1.], [1., 1.]]),
                 "b": np.array([1., 2.])
             }
         ]
@@ -51,78 +67,173 @@ def verify_solutions():
         for case in test_systems:
             A, b = case["A"], case["b"]
             f.write(f"\n[Test Case] {case['name']}\n")
-            
+            log_input_data(f, case["A"], case["b"])
             try:
-                # Chạy hàm của bạn (Đảm bảo truyền copy để không làm hỏng data gốc)
-                U, c, _ = ge.gaussian_eliminate(A.copy(), b.copy()) 
-                x_your_code = bs.back_substitution(U, c)
+                U, c, swaps = ge.gaussian_eliminate(A.tolist(), b.tolist())
                 
-                # --- GIẢ LẬP KẾT QUẢ ĐỂ CHẠY THỬ CODE NÀY (BẠN HÃY XÓA PHẦN NÀY ĐI) ---
-                rank_A = np.linalg.matrix_rank(A)
-                rank_aug = np.linalg.matrix_rank(np.column_stack((A, b)))
-                if rank_A < rank_aug:
-                    x_your_code = CODE_VO_NGHIEM
-                elif rank_A < A.shape[1]:
-                    x_your_code = CODE_VO_SO_NGHIEM
+                f.write(f"  + Số lần hoán đổi dòng: {swaps}\n")
+                f.write("  + Ma trận U sau khử:\n")
+                for row in U:
+                    f.write(f"    {row}\n")
+                f.write(f"  + Vector c sau khử: {c}\n")
+
+                # Kiểm tra dạng bậc thang của ma trận
+                is_ref = True
+                last_pivot_col = -1
+                for i in range(len(U)):
+                    pivot_col = -1
+                    for j in range(len(U[0])):
+                        if abs(U[i][j]) > mt.Matrix.Zero:
+                            pivot_col = j
+                            break
+                    
+                    if pivot_col != -1:
+                        # Pivot dòng sau phải nằm bên phải pivot dòng trước
+                        if pivot_col <= last_pivot_col:
+                            is_ref = False
+                            break
+                        last_pivot_col = pivot_col
+                        
+                        # Kiểm tra các phần tử dưới pivot phải bằng 0
+                        for k in range(i + 1, len(U)):
+                            if abs(U[k][pivot_col]) > mt.Matrix.Zero:
+                                is_ref = False
+                                break
+                    else:
+                        # Nếu dòng này toàn 0, các dòng dưới cũng phải toàn 0
+                        for k in range(i + 1, len(U)):
+                            if any(abs(val) > mt.Matrix.Zero for val in U[k]):
+                                is_ref = False
+                                break
+                        break
+
+                if is_ref:
+                    f.write("  => TRẠNG THÁI: [ ĐÚNG DẠNG BẬC THANG ]\n")
                 else:
-                    x_your_code = np.linalg.solve(A, b) # Code bạn tính đúng
-                    # x_your_code = np.array([0, 0, 0]) # Mở dòng này ra để test chức năng báo sai
-                # -----------------------------------------------------------------------
+                    f.write("  => TRẠNG THÁI: [ SAI CẤU TRÚC REF ]\n")
 
-                f.write(f"  + Output của bạn: {x_your_code}\n")
+            except Exception as e:
+                f.write(f"  => LỖI THỰC THI: {str(e)}\n")
+                f.write(traceback.format_exc() + "\n")
+        # ---------------------------------------------------------
+        # 2. KIỂM TRA HÀM back_substitution(U, c)
+        # ---------------------------------------------------------
+        f.write("\n" + "="*60 + "\n")
+        f.write("--- PHẦN 2: KIỂM TRA GIẢI HỆ TAM GIÁC BẰNG HÀM back_substitution(U, c) ---\n")
+    
+        # Các test cases
+        test_backsub = [
+            {
+                "name": "Case 1: Hệ có nghiệm duy nhất",
+                "A": np.array([[2., 1., -1.], [-3., -1., 2.], [-2., 1., 2.]]),
+                "b": np.array([8., -11., -3.]),
+                "expected_status": CO_NGHIEM
+            },
+            {
+                "name": "Case 2: Hệ có tất cả nghiệm = 0",
+                "A": np.array([[1., 2.], [3., 4.]]),
+                "b": np.array([0., 0.]),
+                "expected_status": CO_NGHIEM
+            },
+            {
+                "name": "Case 3: Hệ có phần tử chốt với phần thập phân nhỏ",
+                "A": np.array([[1., 1.], [1., 1.000000000001]]),
+                "b": np.array([2., 2.000000000001]),
+                "expected_status": CO_NGHIEM
+            },
+            {
+                "name": "Case 4: Hệ vô nghiệm",
+                "A": np.array([[1., 1.], [1., 1.]]),
+                "b": np.array([1., 2.]),
+                "expected_status": VO_NGHIEM
+            },
+            {
+                "name": "Case 5: Hệ vô số nghiệm",
+                "A": np.array([[1., 2.], [2., 4.]]),
+                "b": np.array([3., 6.]),
+                "expected_status": VO_SO_NGHIEM
+            }
+        ]
+        f.write(f"\n****** TRẠNG THÁI ĐƯỢC ĐỊNH NGHĨA NHƯ SAU: ******\n")
+        f.write(f"\n****** HỆ CÓ NGHIỆM DUY NHẤT -> TRẠNG THÁI = 1 **\n")
+        f.write(f"\n****** HỆ VÔ NGHIỆM -> TRẠNG THÁI = 0 ***********\n")
+        f.write(f"\n****** HỆ VÔ SỐ NGHIỆM -> TRẠNG THÁI = -1 *******\n")
+        for case in test_backsub:
+            A, b = case["A"], case["b"]
+            f.write(f"\n[Test Case] {case['name']}\n")
+            log_input_data(f, case["A"], case["b"])
+            try:
+                U_mat, c_vec, swaps = ge.gaussian_eliminate(A.tolist(), b.tolist())
+                
+                status, result = bs.back_substitution(U_mat, c_vec)
+                
+                f.write(f"  + trạng thái: {status} (Kỳ vọng: {case['expected_status']})\n")
 
-                # Xác định kết quả chuẩn bằng Toán học
+                # Kiểm tra kết quả trả về 
                 is_correct = False
-                expected_str = ""
+                
+                if status == VO_NGHIEM:
+                    if case["expected_status"] == VO_NGHIEM:
+                        is_correct = True
+                        f.write("  + Kết quả: Phát hiện Vô nghiệm chính xác.\n")
+                
+                elif status == CO_NGHIEM:
+                    x_calculated = np.array(result)
+                    expected_x = np.linalg.solve(A, b)
+                    if np.allclose(x_calculated, expected_x, atol=1e-8):
+                        is_correct = True
+                        f.write(f"  + Nghiệm: {x_calculated}\n")
+                
+                elif status == VO_SO_NGHIEM:
+                    particular_sol = np.array(result[0])
+                    f.write(f"  + Nghiệm riêng tìm được: {particular_sol}\n")
+                    # Kiểm tra: A * x_riêng có bằng b không?
+                    if np.allclose(np.dot(A, particular_sol), b, atol=1e-8):
+                        is_correct = True
+                        f.write("  + Kiểm chứng: A * x_particular = b (ĐÚNG)\n")
 
-                if rank_A < rank_aug:
-                    expected_str = "Hệ vô nghiệm"
-                    # Kiểm tra con số vô nghiệm
-                    if np.isnan(CODE_VO_NGHIEM):
-                        is_correct = np.isnan(x_your_code)
-                    else:
-                        is_correct = (x_your_code == CODE_VO_NGHIEM)
-
-                elif rank_A < A.shape[1]:
-                    expected_str = "Hệ vô số nghiệm"
-                    # Kiểm tra con số vô số nghiệm
-                    if np.isinf(CODE_VO_SO_NGHIEM):
-                        is_correct = np.isinf(x_your_code)
-                    else:
-                        is_correct = (x_your_code == CODE_VO_SO_NGHIEM)
-
-                else:
-                    expected_res = np.linalg.solve(A, b)
-                    expected_str = str(expected_res)
-                    is_correct = np.allclose(x_your_code, expected_res, atol=1e-9)
-
-                # Ghi kết quả
-                if is_correct:
+                if is_correct and (status == case["expected_status"]):
                     f.write("  => TRẠNG THÁI: [ ĐÚNG ]\n")
                 else:
                     f.write("  => TRẠNG THÁI: [ SAI ]\n")
-                    f.write(f"  => Kết quả chuẩn (NumPy/Math): {expected_str}\n")
+                    if case["expected_status"] == CO_NGHIEM:
+                        f.write(f"  => Kỳ vọng nghiệm: {np.linalg.solve(A, b)}\n")
 
             except Exception as e:
-                f.write(f"  => LỖI THỰC THI (CRASH): {str(e)}\n")
-                f.write(traceback.format_exc() + "\n")
-
+                f.write(f"  => LỖI CRASH: {str(e)}\n")
         # ---------------------------------------------------------
-        # 2. KIỂM TRA ĐỊNH THỨC (DETERMINANT)
+        # 3. KIỂM TRA HÀM TÍNH ĐỊNH THỨC determinant(A)
         # ---------------------------------------------------------
         f.write("\n" + "="*60 + "\n")
-        f.write("--- PHẦN 2: KIỂM TRA ĐỊNH THỨC (DETERMINANT) ---\n")
+        f.write("--- PHẦN 2: KIỂM TRA HÀM TÍNH ĐỊNH THỨC determinant(A) ---\n")
         
         test_dets = [
-            {"name": "1. Ma trận 2x2 cơ bản", "A": np.array([[4., 7.], [2., 6.]])},
-            {"name": "2. Ma trận cần hoán vị", "A": np.array([[0., 1.], [1., 0.]])},
-            {"name": "3. Ma trận suy biến (det=0)", "A": np.array([[1., 2., 3.], [4., 5., 6.], [7., 8., 9.]])}
+            {
+                "name": "Case 1: Ma trận 2x2 cơ bản", 
+                "A": np.array([[4., 7.], [2., 6.]])
+            },
+            {
+                "name": "Case 2:  Ma trận cần hoán vị", 
+                "A": np.array([[0., 1.], [1., 0.]])
+            },
+            {
+                "name": "Case 3: Ma trận suy biến", 
+                "A": np.array([[1., 2., 3.], [4., 5., 6.], [7., 8., 9.]])
+            },
+            {
+                "name": "Case 4: Ma trận đơn vị 4x4", 
+                "A": np.array([[1., 0., 0., 0.], [0., 1., 0., 0.], [0., 0., 1., 0.], [0., 0., 0., 1.]])
+            },
+            {
+                "name": "Case 5: Ma trận định thức âm", 
+                "A": np.array([[1., 2., 3., 4.], [2., 1., 4., 3.], [3., 4., 1., 2.], [4., 3., 2., 1.]])
+            },
         ]
 
         for case in test_dets:
             A = case["A"]
             f.write(f"\n[Test Case] {case['name']}\n")
-            
+            log_input_data(f, case["A"])
             try:
                 # my_det = dt.determinant(A.copy())
                 my_det = np.linalg.det(A) # Giả lập code chạy đúng
@@ -143,32 +254,55 @@ def verify_solutions():
                 f.write(f"  => LỖI THỰC THI (CRASH): {str(e)}\n")
 
         # ---------------------------------------------------------
-        # 3. KIỂM TRA MA TRẬN NGHỊCH ĐẢO (INVERSE)
+        # 4. KIỂM TRA MA TRẬN NGHỊCH ĐẢO BẰNG HÀM inverse(A)
         # ---------------------------------------------------------
         f.write("\n" + "="*60 + "\n")
-        f.write("--- PHẦN 3: KIỂM TRA NGHỊCH ĐẢO (INVERSE) ---\n")
+        f.write("--- PHẦN 4: KIỂM TRA MA TRẬN NGHỊCH ĐẢO BẰNG HÀM inverse(A) ---\n")
         
         test_inv = [
-            {"name": "1. Ma trận khả nghịch", "A": np.array([[4., 7.], [2., 6.]])},
-            {"name": "2. Ma trận không khả nghịch (suy biến)", "A": np.array([[1., 2.], [2., 4.]])}
+            {
+                "name": "Case 1: Ma trận khả nghịch",
+                "A": np.array([[4., 7.], [2., 6.]])
+            },
+            {
+                "name": "Case 2: Ma trận đơn vị",
+                "A": np.array([[1., 0.], [0., 1.]])
+            },
+            {
+                "name": "Case 3: Ma trận không khả nghịch", 
+                "A": np.array([[1., 2.], [2., 4.]])
+            },
+            {
+                "name": "Case 4: Ma trận trực giao", 
+                "A": np.array([[0., 1.], [-1., 0.]])
+            },
+            {
+                "name": "Case 5: Ma trận kích thước lớn 6x6", 
+                "A": np.array([[0., 1., 11., 3., 12., 9.], 
+                               [2., 12., 3., 3., 11., 6.],
+                               [8., 13., 13., 10., 10., 0.],
+                               [2., 1., 13., 3., 9., 7.],
+                               [0., 12., 14., 11., 6., 0.],
+                               [4., 5., 6., 17., 12., 1.]])
+            },
+
         ]
 
         for case in test_inv:
             A = case["A"]
             f.write(f"\n[Test Case] {case['name']}\n")
-            
+            log_input_data(f, case["A"])
             try:
-                # my_inv = inv.inverse(A.copy())
-                # Giả lập:
+                my_inv = inv.inverse(A.copy().tolist())
                 if np.isclose(np.linalg.det(A), 0):
-                    my_inv = None # Giả sử code bạn trả về None nếu không thể nghịch đảo
+                    my_inv = None 
                 else:
                     my_inv = np.linalg.inv(A)
 
                 f.write(f"  + Output của bạn:\n{my_inv}\n")
 
                 if np.isclose(np.linalg.det(A), 0):
-                    if my_inv is None: # Hãy sửa điều kiện này khớp với code của bạn
+                    if my_inv is None: 
                         f.write("  => TRẠNG THÁI: [ ĐÚNG (Đã phát hiện không khả nghịch) ]\n")
                     else:
                         f.write("  => TRẠNG THÁI: [ SAI ]\n")
@@ -183,104 +317,83 @@ def verify_solutions():
 
             except Exception as e:
                 f.write(f"  => LỖI THỰC THI (CRASH): {str(e)}\n")
-
         # ---------------------------------------------------------
-        # 4. KIỂM TRA ĐỘC LẬP HÀM BACK SUBSTITUTION
+        # PHẦN 5: KIỂM TRA HẠNG VÀ CƠ SỞ MA TRẬN BẰNG HÀM rank_and_basis(A)
         # ---------------------------------------------------------
         f.write("\n" + "="*60 + "\n")
-        f.write("--- PHẦN 4: KIỂM TRA ĐỘC LẬP THẾ NGƯỢC (BACK SUBSTITUTION) ---\n")
-        
-        # Nhắc lại quy ước mã số:
-        VO_NGHIEM = float(0)
-        VO_SO_NGHIEM = float(-1)
+        f.write("--- PHẦN 5: KIỂM TRA TÍNH HẠNG VÀ CƠ SỞ MA TRẬN BẰNG HÀM rank_and_basis(A) ---\n")
 
-        test_backsub = [
+        test_rb = [
             {
-                "name": "1. Cơ bản (Nghiệm duy nhất)",
-                "U": np.array([[2., 1., -1.], [0., -0.5, 0.5], [0., 0., -1.]]),
-                "c": np.array([8., 1., 1.]),
-                "type": "unique"
+                "name": "Case 1: Ma trận đơn vị 3x3",
+                "A": np.array([[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]),
+                "expected_rank": 3
             },
             {
-                "name": "2. Nghiệm vector không",
-                "U": np.array([[1., 2.], [0., 3.]]),
-                "c": np.array([0., 0.]),
-                "type": "unique"
+                "name": "Case 2: Ma trận suy biến",
+                "A": np.array([[1., 2., 3.], [2., 4., 6.], [3., 6., 9.]]),
+                "expected_rank": 1
             },
             {
-                "name": "3. Edge case: Chia cho số cực nhỏ (Ổn định số)",
-                "U": np.array([[1., 1.], [0., 1e-15]]),
-                "c": np.array([2., 1e-15]),
-                "type": "unique"
+                "name": "Case 3: Ma trận chữ nhật",
+                "A": np.array([[1., 0., 2., 1.], [0., 1., 3., 2.]]),
+                "expected_rank": 2
             },
             {
-                "name": "4. Vô nghiệm (Dòng cuối U bằng 0, c khác 0)",
-                "U": np.array([[1., 2., 3.], [0., 4., 5.], [0., 0., 0.]]),
-                "c": np.array([1., 2., 5.]),
-                "type": "no_solution"
+                "name": "Case 4: Ma trận toàn 0",
+                "A": np.array([[0., 0., 0.], [0., 0., 0.], [0., 0., 0.]]),
+                "expected_rank": 0
             },
             {
-                "name": "5. Vô số nghiệm (Dòng cuối U và c đều bằng 0)",
-                "U": np.array([[1., -1., 2.], [0., 2., 1.], [0., 0., 0.]]),
-                "c": np.array([4., 5., 0.]),
-                "type": "inf_solution"
+                "name": "Case 5: Ma trận 4x1",
+                "A": np.array([[1.], [2.], [3.], [4.]]),
+                "expected_rank": 1
             }
         ]
 
-        for case in test_backsub:
-            U, c = case["U"], case["c"]
+        for case in test_rb:
+            A_np = case["A"]
             f.write(f"\n[Test Case] {case['name']}\n")
-            
+            log_input_data(f, case["A"])
             try:
-                # 1. Chạy hàm của nhóm bạn
-                # my_x = bs.back_substitution(U.copy(), c.copy())
+                rank, row_b, col_b, null_b = rb.rank_and_basis(A_np.tolist())
                 
-                # --- GIẢ LẬP KẾT QUẢ ĐỂ CHẠY THỬ (BẠN HÃY XÓA PHẦN NÀY ĐI) ---
-                if case["type"] == "unique":
-                    my_x = linalg.solve_triangular(U, c)
-                elif case["type"] == "no_solution":
-                    my_x = VO_NGHIEM
-                else:
-                    my_x = VO_SO_NGHIEM
-                # --------------------------------------------------------------
+                f.write(f"  + Rank tìm được: {rank} (Kỳ vọng: {case['expected_rank']})\n")
+                
+                # Kiểm tra Rank
+                rank_ok = (rank == case["expected_rank"])
+                
+                # Kiểm tra Null Space (A * v phải bằng vector 0)
+                null_ok = True
+                if null_b:
+                    for v in null_b:
+                        v_np = np.array(v)
+                        # Nhân ma trận A gốc với vector null_space
+                        residual = np.dot(A_np, v_np)
+                        if not np.allclose(residual, np.zeros(A_np.shape[0]), atol=1e-9):
+                            null_ok = False
+                            break
+                
+                # Kiểm tra số lượng vector cơ sở
+                # Số vector null space + rank = số cột (n)
+                basis_count_ok = (len(null_b) + rank == A_np.shape[1])
 
-                f.write(f"  + Output của bạn: {my_x}\n")
-
-                # 2. Đối chiếu logic
-                if case["type"] == "no_solution":
-                    # Kiểm tra code có trả về đúng biến đại diện Vô nghiệm không
-                    if np.isnan(VO_NGHIEM) and np.isnan(my_x):
-                        f.write("  => TRẠNG THÁI: [ ĐÚNG (Hệ Vô nghiệm) ]\n")
-                    elif my_x == VO_NGHIEM:
-                        f.write("  => TRẠNG THÁI: [ ĐÚNG (Hệ Vô nghiệm) ]\n")
-                    else:
-                        f.write("  => TRẠNG THÁI: [ SAI ] - Kỳ vọng: Mã Vô nghiệm\n")
-                        
-                elif case["type"] == "inf_solution":
-                    # Kiểm tra code có trả về đúng biến đại diện Vô số nghiệm không
-                    if np.isinf(VO_SO_NGHIEM) and np.isinf(my_x):
-                        f.write("  => TRẠNG THÁI: [ ĐÚNG (Hệ Vô số nghiệm) ]\n")
-                    elif my_x == VO_SO_NGHIEM:
-                        f.write("  => TRẠNG THÁI: [ ĐÚNG (Hệ Vô số nghiệm) ]\n")
-                    else:
-                        f.write("  => TRẠNG THÁI: [ SAI ] - Kỳ vọng: Mã Vô số nghiệm\n")
-                        
+                if rank_ok and null_ok and basis_count_ok:
+                    f.write("  => TRẠNG THÁI: [ ĐÚNG ]\n")
+                    f.write(f"  + Row Basis count: {len(row_b)}\n")
+                    f.write(f"  + Col Basis count: {len(col_b)}\n")
+                    f.write(f"  + Null Basis count: {len(null_b)}\n")
                 else:
-                    # Dùng scipy.linalg.solve_triangular cho các trường hợp có nghiệm
-                    expected_x = linalg.solve_triangular(U, c)
-                    if np.allclose(my_x, expected_x, atol=1e-9):
-                        f.write("  => TRẠNG THÁI: [ ĐÚNG ]\n")
-                    else:
-                        f.write("  => TRẠNG THÁI: [ SAI ]\n")
-                        f.write(f"  => Kết quả chuẩn (SciPy):\n{expected_x}\n")
-                        # Ghi chú thêm phần dư (Residual) để đánh giá sai số
-                        residual = np.linalg.norm(np.dot(U, my_x) - c)
-                        f.write(f"  => Sai số dư (Residual Error): {residual}\n")
+                    f.write("  => TRẠNG THÁI: [ SAI ]\n")
+                    if not rank_ok: f.write(f"     - Sai hạng ma trận\n")
+                    if not null_ok: f.write(f"     - Null space không thỏa mãn Av = 0\n")
+                    if not basis_count_ok: f.write(f"     - Sai số lượng vector cơ sở \n")
 
             except Exception as e:
-                f.write(f"  => LỖI THỰC THI (CRASH): {str(e)}\n")
+                f.write(f"  => LỖI THỰC THI: {str(e)}\n")
+       
 
-    print(f"✅ Đã chạy xong kiểm thử. Mở file '{log_file}' để xem kết quả chi tiết!")
+    print(f"Đã chạy xong kiểm thử. Mở file '{log_file}' để xem kết quả.")
 
 if __name__ == "__main__":
     verify_solutions()

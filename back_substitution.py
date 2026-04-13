@@ -1,7 +1,7 @@
 import matrix as mt
 import gaussian_eliminate as ge
 
-def back_substitution(self, U, c):
+def back_substitution(U, c):
     """
         Giải hệ phương trình tam giác trên Ux = c.
         Xử lý 3 trường hợp: nghiệm duy nhất, vô nghiệm, vô số nghiệm.
@@ -10,13 +10,13 @@ def back_substitution(self, U, c):
     n_rows = len(U)
     n_cols = len(U[0])
 
-    # Xác định vị trí các phần tử chốt (pivot) trên từng dòng
+    # Xác định vị trí các phần tử chốt trên từng dòng
     pivot_col = []
     for i in range(n_rows):
         pc = -1
         for j in range(n_cols):
             # Nếu phát hiện pivot, đánh dấu vị trí cột chứa nó
-            if abs(U[i][j]) > self.Zero:
+            if abs(U[i][j]) > mt.Matrix.Zero:
                 pc = j
                 break
         pivot_col.append(pc)
@@ -24,7 +24,7 @@ def back_substitution(self, U, c):
     # Kiểm tra hệ phương trình có vô nghiệm không
     for i in range(n_rows):
         # Nếu tồn tại dòng có dạng [0 0 0 ... 0 | k] với k != 0, hệ vô nghiệm
-        if pivot_col[i] == -1 and abs(c[i]) > self.Zero:
+        if pivot_col[i] == -1 and abs(c[i]) > mt.Matrix.Zero:
             return 0, None
 
     # Lưu các biến cơ sở tương ứng với các cột có phần tử chốt.
@@ -34,37 +34,28 @@ def back_substitution(self, U, c):
 
     # Thuật toán thế ngược
     def solve_system(c, free_values):
-        # Khởi tạo vector nghiệm x với kích thước bằng số cột (số ẩn)
+        # Khởi tạo vector nghiệm x với kích thước bằng số cột 
         x = [0.0] * n_cols
-        # Gán giá trị ẩn tự do (nếu hệ có nghiệm duy nhất, free_vars sẽ rỗng, vòng lặp này không chạy)
+        # Gán giá trị ẩn tự do 
         for k, fv in enumerate(free_vars):
             x[fv] = free_values[k]
 
         # Duyệt ngược vì giá trị ẩn ở dòng dưới sẽ giúp giải ẩn ở dòng trên.
         for i in range(n_rows - 1, -1, -1):
             pc = pivot_col[i]
-            # Nếu dòng toàn số 0 (không có pivot), bỏ qua vì không giúp tìm thêm ẩn.
-            if pc == -1: continue
+            # Nếu dòng toàn số 0, bỏ qua 
+            if pc == -1: 
+                continue   
         
             # x_pc = (c_i - tổng các phần tử đã biết) / hệ số tại pivot
             sigma = sum(U[i][j] * x[j] for j in range(pc + 1, n_cols))
             x[pc] = (c[i] - sigma) / U[i][pc]
         return x
 
-    # Biện luận kết quả
     # Nghiệm duy nhất
     if not free_vars:
         return 1, solve_system(c, [])
 
     # Vô số nghiệm
-    x_particular = solve_system(c, [0.0] * len(free_vars))
 
-    # Sinh cơ sở không gian nghiệm: lần lượt gán từng ẩn tự do = 1, còn lại = 0
-    null_basis = []
-    for k in range(len(free_vars)):
-        free_vals = [0.0] * len(free_vars)
-        free_vals[k] = 1.0
-        vec = solve_system([0.0] * n_rows, free_vals)  # c = 0 vì giải Ux = 0
-        null_basis.append(vec)
-
-    return -1, x_particular, [x + 1 for x in free_vars], null_basis
+    return -1, None

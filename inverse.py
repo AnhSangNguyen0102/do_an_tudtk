@@ -1,7 +1,7 @@
 import matrix as mt
 import gaussian_eliminate as ge
 
-def inverse(self, A): 
+def inverse(A): 
     """ Tìm ma trận nghịch đảo bằng phương pháp Gauss-Jordan trên ma trận mở rộng [A | I] """
     n = len(A)
     if n == 0:

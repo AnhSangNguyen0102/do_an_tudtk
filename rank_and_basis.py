@@ -1,12 +1,12 @@
 import matrix as mt
 import gaussian_eliminate as ge
 
-def rank_and_basis(self, A=None):    
+def rank_and_basis(A=None):    
     """
     Tìm hạng và cơ sở của các không gian cột, dòng, nghiệm.
     """
     if A is None:
-        A = getattr(self, 'A', [])
+        A = getattr('A', [])
         
     if not A or not A[0]:
         return 0, [], [], []

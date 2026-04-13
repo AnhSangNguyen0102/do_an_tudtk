@@ -21,23 +21,3 @@ def determinant(A):
         det = -det
 
     return det
-
-def main():
-    # Khởi tạo ma trận bằng class mt.Matrix
-    # Sử dụng phần ma trận A (3x3), vector b có thể giữ nguyên không ảnh hưởng
-    matrixA = mt.Matrix(((1, 2, 3), 
-                         (2, 3, 3), 
-                         (3, 1, 4)), 
-                         (2, 4, 7))
-
-    print("--- Ma trận A ban đầu ---")
-    for r in matrixA.A: 
-        print(r)
-    
-    # Gọi hàm tính định thức và truyền vào phần tử A của class Matrix
-    det = determinant(matrixA.A)
-
-    print(f"\n=> Định thức của ma trận (det A) = {det}")
-
-if __name__ == "__main__":
-    main()
