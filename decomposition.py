@@ -167,27 +167,71 @@ class SVDDecomposition:
 
         return U, Sigma, V_T
 
-# ==========================================
-# CÁCH CHẠY THỬ (TEST CASE)
-# ==========================================
+# Kiểm thử hàm svd(A)
 if __name__ == "__main__":
-    # Test với một ma trận bất kỳ
-    A = [
-        [3, 2, 2],
-        [2, 3, -2]
+
+    test_decomposition = [
+        {
+            "name": "Ma trận 3x2",
+            "A": [
+                [1.0, 2.0],
+                [3.0, 4.0],
+                [5.0, 6.0]
+            ],
+        },
+        
+
+        {
+            "name": "Ma trận 2x3",
+            "A": [
+                [3.0, 2.0, 2.0], 
+                [2.0, 3.0, -2.0]
+            ]
+        },
+
+        {
+            "name": "Ma trận 2x2 suy biến",
+            "A": [
+                [1.0, 1.0],
+                [2.0, 2.0]
+            ]
+        },
+
+        {
+            "name": "Ma trận 1x1",
+            "A": [
+                [5.0]
+            ]
+        },
+
+        {
+            "name": "Ma trận 4x3",
+            "A": [
+                [1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 0.0, 1.0],
+                [1.0, 1.0, 1.0]
+            ]
+        }
     ]
 
-    try:
-        U, Sigma, V_T = SVDDecomposition.svd(A)
+    for test in test_decomposition:
+        print(f"\n=== Test: {test['name']} ===")
+        A = test["A"]
+        print("--- Ma trận A ban đầu ---")
+        for row in A: 
+            print([round(x, 4) for x in row])
+        try:
+            U, Sigma, V_T = SVDDecomposition.svd(A)
 
-        print("--- Ma trận U ---")
-        for row in U: print([round(x, 4) for x in row])
+            print("--- Ma trận U ---")
+            for row in U: print([round(x, 4) for x in row])
 
-        print("\n--- Ma trận Sigma ---")
-        for row in Sigma: print([round(x, 4) for x in row])
+            print("\n--- Ma trận Sigma ---")
+            for row in Sigma: print([round(x, 4) for x in row])
 
-        print("\n--- Ma trận V^T ---")
-        for row in V_T: print([round(x, 4) for x in row])
+            print("\n--- Ma trận V^T ---")
+            for row in V_T: print([round(x, 4) for x in row])
 
-    except Exception as e:
-        print(f"Lỗi: {e}")
+        except Exception as e:
+            print(f"Lỗi: {e}")
