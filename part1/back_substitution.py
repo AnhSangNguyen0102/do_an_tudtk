@@ -1,5 +1,5 @@
-import part1.matrix as mt
-import part1.gaussian_eliminate as ge
+import matrix as mt
+import gaussian_eliminate as ge
 
 def back_substitution(U, c):
     """
