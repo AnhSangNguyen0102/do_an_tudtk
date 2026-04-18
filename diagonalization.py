@@ -1,4 +1,5 @@
-from decomposition import decom
+import decomposition as decom
+import numpy as np # Dùng để kiểm thử kết quả
 
 class Diagonalization:
     @staticmethod
@@ -31,7 +32,7 @@ class Diagonalization:
             raise ValueError("Thuật toán Jacobi hiện tại chỉ hỗ trợ chéo hóa ma trận đối xứng.")
 
         # Tìm trị riêng và vector riêng bằng thuật toán Jacobi từ file decomposition.py
-        eigenvalues, P = decom.jacobi_eigen(A)
+        eigenvalues, P = decom.SVDDecomposition.jacobi_eigen(A)
 
         # Xây dựng ma trận đường chéo D
         D = [[0.0] * n for _ in range(n)]
@@ -39,15 +40,15 @@ class Diagonalization:
             D[i][i] = eigenvalues[i]
 
         # Tính P^-1
-        P_inv = decom.transpose(P)
+        P_inv = decom.SVDDecomposition.transpose(P)
 
         return P, D, P_inv
 
     @staticmethod
     def reconstruct(P, D, P_inv):
         """Hàm hỗ trợ kiểm tra kết quả chéo hoá"""
-        PD = decom.matmul(P, D)
-        A_reconstructed = decom.matmul(PD, P_inv)
+        PD = decom.SVDDecomposition.matmul(P, D)
+        A_reconstructed = decom.SVDDecomposition.matmul(PD, P_inv)
         return A_reconstructed
 
 # Kiểm thử hàm diagonalize(A)
@@ -99,12 +100,16 @@ if __name__ == "__main__":
     for test in test_diagonalize:
         print(f"\n=== Test: {test['name']} ===")
         A = test["A"]
+        A_np = np.array(A)
         print("--- Ma trận A ban đầu ---")
         for row in A: 
             print([round(x, 4) for x in row])
 
         try:
             P, D, P_inv = Diagonalization.diagonalize(A)
+
+            A_rec = Diagonalization.reconstruct(P, D, P_inv)
+
 
             print("\n--- Ma trận P (Chứa các vector riêng) ---")
             for row in P: 
@@ -119,9 +124,16 @@ if __name__ == "__main__":
                 print([round(x, 4) for x in row])
 
             print("\n--- Kiểm chứng: P * D * P^-1 ---")
-            A_reconstructed = Diagonalization.reconstruct(P, D, P_inv)
-            for row in A_reconstructed: 
+            A_rec= Diagonalization.reconstruct(P, D, P_inv)
+            A_rec_np = np.array(A_rec)
+
+            for row in A_rec: 
                 print([round(x, 4) for x in row])
+
+            if np.allclose(A_np, A_rec_np, atol=1e-7):
+                print(f"  => KẾT QUẢ: ĐÚNG")
+            else:
+                print(f"  => KẾT QUẢ: SAI")
 
         except Exception as e:
             print(f"Lỗi: {e}")
