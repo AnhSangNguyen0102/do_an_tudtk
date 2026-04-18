@@ -1,4 +1,5 @@
 import math
+import numpy as np # Dùng để kiểm thử kết quả
 
 class SVDDecomposition:
     @staticmethod
@@ -36,26 +37,23 @@ class SVDDecomposition:
 
         for _ in range(max_iter):
             # Tìm phần tử ngoài đường chéo có trị tuyệt đối lớn nhất
-            max_val = 0.0
-            p, q = 0, 0
+            max_val =  0.0
+            p, q = 0, 1
             for i in range(n):
                 for j in range(i + 1, n):
                     if abs(S_copy[i][j]) > max_val:
                         max_val = abs(S_copy[i][j])
                         p, q = i, j
 
-            # Nếu phần tử lớn nhất đã đủ nhỏ -> hội tụ
+            # Nếu phần tử lớn nhất đã đủ nhỏ
             if max_val < tol:
                 break
 
             # Tính góc xoay theta
-            if abs(S_copy[p][p] - S_copy[q][q]) < 1e-12:
-                theta = math.pi / 4.0
-            else:
-                theta = 0.5 * math.atan2(2.0 * S_copy[p][q], S_copy[p][p] - S_copy[q][q])
-
-            c = math.cos(theta)
-            s = math.sin(theta)
+            tau = (S_copy[q][q] - S_copy[p][p]) / (2.0 * S_copy[p][q])
+            t = math.copysign(1.0, tau) / (abs(tau) + math.sqrt(1.0 + tau * tau))
+            c = 1.0 / math.sqrt(1.0 + t * t)
+            s = t * c
 
             # Cập nhật V và S_copy
             for i in range(n):
@@ -99,48 +97,50 @@ class SVDDecomposition:
         m = len(A)
         n = len(A[0])
 
-        # 1. Tính A^T * A
-        A_T = SVDDecomposition.transpose(A)
-        S = SVDDecomposition.matmul(A_T, A)  # Kích thước n x n
-
-        # 2. Tìm trị riêng và vector riêng của A^T * A
-        eigenvalues, V_mat = SVDDecomposition.jacobi_eigen(S)
-
-        # 3. Ghép cặp trị riêng - vector riêng và sắp xếp giảm dần
-        eig_pairs = []
-        for i in range(n):
-            vec = [V_mat[j][i] for j in range(n)]
-            eig_pairs.append((eigenvalues[i], vec))
-        
-        eig_pairs.sort(key=lambda x: x[0], reverse=True)
-
-        singular_values = []
-        V_T = []  # Ma trận V^T
-        
-        for val, vec in eig_pairs:
-            # Ngăn lỗi số âm cực nhỏ do sai số dấu phẩy động
-            sigma = math.sqrt(max(0.0, val))
-            singular_values.append(sigma)
-            V_T.append(vec)
-
-        V_final = SVDDecomposition.transpose(V_T)  # Kích thước n x n (Đây là ma trận V)
-
-        # 4. Khởi tạo ma trận đường chéo Sigma (kích thước m x n)
-        Sigma = [[0.0] * n for _ in range(m)]
-        for i in range(min(m, n)):
-            Sigma[i][i] = singular_values[i]
-
-        # 5. Tính toán ma trận U (kích thước m x m)
-        U_cols = []
         tol = 1e-9
+        # 1. Tính A_T * A (kích thước n x n)
+        A_T = SVDDecomposition.transpose(A)
+        ATA = SVDDecomposition.matmul(A_T, A)
 
-        # Tính u_i = (A * v_i) / sigma_i
-        for i in range(n):
+        # 2. Tìm trị riêng và vector riêng của ATA
+        # eigenvalues: n phần tử, V: n x n
+        eigenvalues, V = SVDDecomposition.jacobi_eigen(ATA)
+
+        # Sắp xếp trị riêng và vector riêng theo thứ tự giảm dần của trị riêng
+        eigen_pairs = []
+        for i in range(len(eigenvalues)):
+            # Đảm bảo lấy trị tuyệt đối để tránh lỗi số âm cực nhỏ (ví dụ -1e-15)
+            val = max(0, eigenvalues[i])
+            # V là ma trận mà các cột là vector riêng
+            col = [V[row][i] for row in range(len(V))]
+            eigen_pairs.append((val, col))
+        
+        eigen_pairs.sort(key=lambda x: x[0], reverse=True)
+        
+        sorted_eigenvalues = [p[0] for p in eigen_pairs]
+        sorted_V_cols = [p[1] for p in eigen_pairs]
+
+        # Khởi tạo Sigma (m x n) và gán giá trị suy biến
+        Sigma = [[0.0] * n for _ in range(m)]
+        singular_values = []
+        for i in range(min(m, n)):
+            val = math.sqrt(max(0.0, sorted_eigenvalues[i]))
+            Sigma[i][i] = val
+            singular_values.append(val)
+
+        # 4. Tính ma trận U (m x m)
+        # Công thức: u_i = (1 / sigma_i) * A * v_i
+        U_cols = []
+        
+        for i in range(min(m, n)):
             if singular_values[i] > tol:
-                v_i = [[V_final[j][i]] for j in range(n)]  # Chuyển thành vector cột
-                Av_i = SVDDecomposition.matmul(A, v_i)
-                u_i = [Av_i[j][0] / singular_values[i] for j in range(m)]
-                U_cols.append(u_i)
+                # v_i là cột thứ i của V (dòng thứ i của V_T)
+                v_i = sorted_V_cols[i]
+                # A * v_i (kết quả là vector m chiều)
+                u_i = [sum(A[r][c] * v_i[c] for c in range(n)) for r in range(m)]
+                # Chuẩn hóa u_i
+                norm = SVDDecomposition.vector_norm(u_i)
+                U_cols.append([x / norm for x in u_i])
 
         # Nếu U chưa đủ m cột (ma trận không vuông hoặc suy biến), bổ sung bằng Gram-Schmidt
         basis_idx = 0
@@ -148,23 +148,24 @@ class SVDDecomposition:
             # Tạo vector cơ sở tiêu chuẩn e_i
             e = [0.0] * m
             e[basis_idx] = 1.0
-            basis_idx += 1
 
             # Trực giao hóa (Orthogonalize) với các cột đã có trong U
+            temp_e = e[:]
             for u in U_cols:
-                dot = sum(e[k] * u[k] for k in range(m))
+                dot = sum(temp_e[k] * u[k] for k in range(m))
                 for k in range(m):
-                    e[k] -= dot * u[k]
+                    temp_e[k] -= dot * u[k]
 
-            norm = SVDDecomposition.vector_norm(e)
+            norm = SVDDecomposition.vector_norm(temp_e)
+
             if norm > tol:
                 # Chuẩn hóa (Normalize)
-                e_norm = [e[k] / norm for k in range(m)]
-                U_cols.append(e_norm)
+                U_cols.append([x / norm for x in temp_e])
+            basis_idx += 1
 
         # Ma trận U hoàn chỉnh
         U = SVDDecomposition.transpose(U_cols)
-
+        V_T = sorted_V_cols
         return U, Sigma, V_T
 
 # Kiểm thử hàm svd(A)
@@ -214,15 +215,22 @@ if __name__ == "__main__":
             ]
         }
     ]
-
+    i = 1
     for test in test_decomposition:
-        print(f"\n=== Test: {test['name']} ===")
+        
+        print(f"\n=== Test {i}: {test['name']} ===")
         A = test["A"]
+        A_np = np.array(A)
         print("--- Ma trận A ban đầu ---")
         for row in A: 
             print([round(x, 4) for x in row])
         try:
             U, Sigma, V_T = SVDDecomposition.svd(A)
+
+
+            U_Sigma = SVDDecomposition.matmul(U, Sigma)
+            A_rec = SVDDecomposition.matmul(U_Sigma, V_T)
+            A_rec_np = np.array(A_rec)
 
             print("--- Ma trận U ---")
             for row in U: print([round(x, 4) for x in row])
@@ -231,7 +239,13 @@ if __name__ == "__main__":
             for row in Sigma: print([round(x, 4) for x in row])
 
             print("\n--- Ma trận V^T ---")
-            for row in V_T: print([round(x, 4) for x in row])
+            for row in V_T: print([round(x, 4) for x in row]) 
+
+            if np.allclose(A_np, A_rec_np, atol=1e-7):
+                print(f"  => KẾT QUẢ: ĐÚNG (A ≈ U*Σ*V^T)")
+            else:
+                print(f"  => KẾT QUẢ: SAI")
 
         except Exception as e:
-            print(f"Lỗi: {e}")
+            print(f"Đã xảy ra lỗi: {e}")  
+        i += 1
