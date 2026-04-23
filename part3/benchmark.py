@@ -62,19 +62,15 @@ def calculate_error(A, x, b, n):
     return math.sqrt(error_sq_sum)
 
 def run_benchmark():
-    # Các kích thước n theo yêu cầu đồ án
     n_sizes = [50, 100, 200, 500, 1000]
-    
-    print("BẮT ĐẦU ĐO ĐẠC VÀ KIỂM THỬ...\n")
-    
+      
     for n in n_sizes:
-        print(f"{'='*60}")
+        print("\n\n")
         print(f"KÍCH THƯỚC MA TRẬN: {n} x {n}")
-        print(f"{'='*60}")
-        
+        print("\n")
         # Chạy 5 test cases, phân bổ đều cho 3 LOẠI MA TRẬN
         for test_idx in range(1, 6):
-            print(f"\n--- Test Case {test_idx} ---")
+            print(f"\nTest Case {test_idx}")
             
             if test_idx <= 2:
                 print("Phân loại : LOẠI 1 - Ma trận chéo trội nghiêm ngặt (SDD)")
